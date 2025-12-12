@@ -121,4 +121,10 @@ function getProduct(productCode, size) {
     };
 }
 
-module.exports = { PRODUCTS, getProduct };
+const UI_OPTIONS = {
+    types: ["Set", "Hoodie", "Trousers"],
+    colors: ["Petroleum", "Black", "Gray"],
+    sizes: ["M", "L", "XL"]
+};
+
+module.exports = { PRODUCTS, getProduct, UI_OPTIONS };
