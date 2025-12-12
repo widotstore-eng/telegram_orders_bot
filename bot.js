@@ -115,7 +115,8 @@ bot.on("text", async (ctx) => {
             }
         );
 
-        const order = response.data.order;
+        // Shopify returns an array of orders, not a single order
+        const order = response.data.orders[0];
         console.log("Order created:", order.id);
 
         ctx.reply(
