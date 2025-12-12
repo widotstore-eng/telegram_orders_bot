@@ -102,6 +102,9 @@ async function testOrderCreation() {
 
     try {
         console.log("\n🚀 Creating order in Shopify...");
+        console.log("   Request URL:", `https://${SHOPIFY_STORE}/admin/api/2024-10/orders.json`);
+        console.log("   Request Method: POST");
+
         const response = await axios.post(
             `https://${SHOPIFY_STORE}/admin/api/2024-10/orders.json`,
             orderPayload,
@@ -110,21 +113,45 @@ async function testOrderCreation() {
                     "X-Shopify-Access-Token": SHOPIFY_TOKEN,
                     "Content-Type": "application/json",
                 },
-                timeout: 10000
+                timeout: 10000,
+                maxRedirects: 5,
+                validateStatus: (status) => status < 500 // Don't throw on redirects
             }
         );
 
+        console.log("\n📡 Response Details:");
+        console.log("   Status Code:", response.status);
+        console.log("   Status Text:", response.statusText);
+        console.log("   Final URL:", response.request?.res?.responseUrl || "N/A");
+        console.log("   Data Keys:", Object.keys(response.data));
 
-        // Shopify returns an array of orders, not a single order
-        const order = response.data.orders[0];
-        console.log("\n✅ Order Created Successfully!");
-        console.log("   Order Number:", order.name);
-        console.log("   Order ID:", order.id);
-        console.log("   Status:", order.financial_status);
-        console.log("   Total:", order.total_price);
-        console.log("   View in Shopify: https://" + SHOPIFY_STORE + "/admin/orders/" + order.id);
-
-        return true;
+        // Check if response has 'order' (single) or 'orders' (array)
+        if (response.data.order) {
+            console.log("\n✅ Response contains 'order' (singular) - NEW ORDER CREATED");
+            const order = response.data.order;
+            console.log("   Order Number:", order.name);
+            console.log("   Order ID:", order.id);
+            console.log("   Created At:", order.created_at);
+            console.log("   Status:", order.financial_status);
+            console.log("   Total:", order.total_price);
+            console.log("   View in Shopify: https://" + SHOPIFY_STORE + "/admin/orders/" + order.id);
+            return true;
+        } else if (response.data.orders && Array.isArray(response.data.orders)) {
+            console.log("\n⚠️  Response contains 'orders' (array) - EXISTING ORDERS RETURNED");
+            console.log("   Number of orders returned:", response.data.orders.length);
+            if (response.data.orders.length > 0) {
+                const order = response.data.orders[0];
+                console.log("   First Order Number:", order.name);
+                console.log("   First Order ID:", order.id);
+                console.log("   Created At:", order.created_at);
+                console.log("   ⚠️  THIS IS AN EXISTING ORDER, NOT A NEW ONE!");
+                return false; // Changed to false since no new order was created
+            }
+        } else {
+            console.log("\n❌ Unexpected response structure!");
+            console.log("   Response:", JSON.stringify(response.data, null, 2));
+            return false;
+        }
     } catch (err) {
         console.error("\n❌ Order Creation Failed:");
         console.error("   Status:", err.response?.status);

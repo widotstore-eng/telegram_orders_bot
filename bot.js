@@ -100,7 +100,9 @@ bot.on("text", async (ctx) => {
             }
         };
 
+
         console.log("Creating Shopify order...");
+        console.log("Request URL:", `https://${SHOPIFY_STORE}/admin/api/2024-10/orders.json`);
 
         // Create order in Shopify
         const response = await axios.post(
@@ -111,22 +113,35 @@ bot.on("text", async (ctx) => {
                     "X-Shopify-Access-Token": SHOPIFY_TOKEN,
                     "Content-Type": "application/json",
                 },
-                timeout: 10000 // 10 second timeout
+                timeout: 10000,
+                maxRedirects: 5
             }
         );
 
-        // Shopify returns an array of orders, not a single order
-        const order = response.data.orders[0];
-        console.log("Order created:", order.id);
+        console.log("Response Status:", response.status, response.statusText);
+        console.log("Response Keys:", Object.keys(response.data));
 
-        ctx.reply(
-            `✅ Order Created Successfully!\n\n` +
-            `Order Number: #${order.name}\n` +
-            `Order ID: ${order.id}\n` +
-            `Customer: ${data.name}\n` +
-            `Product: ${data.product}\n` +
-            `Status: ${order.financial_status}`
-        );
+        // Check if order was created (singular) or existing orders returned (plural)
+        if (response.data.order) {
+            const order = response.data.order;
+            console.log("✅ New order created:", order.id);
+
+            ctx.reply(
+                `✅ Order Created Successfully!\n\n` +
+                `Order Number: #${order.name}\n` +
+                `Order ID: ${order.id}\n` +
+                `Customer: ${data.name}\n` +
+                `Product: ${data.product}\n` +
+                `Status: ${order.financial_status}`
+            );
+        } else if (response.data.orders && Array.isArray(response.data.orders)) {
+            console.error("⚠️ Got existing orders array instead of creating new order!");
+            console.error("This indicates a POST-to-GET redirect issue.");
+            ctx.reply("❌ Error: Could not create order. Please contact admin.");
+        } else {
+            console.error("❌ Unexpected response structure:", response.data);
+            ctx.reply("❌ Error creating order. Please contact admin.");
+        }
 
     } catch (err) {
         console.error("Error processing order:");
