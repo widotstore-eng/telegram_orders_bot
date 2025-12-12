@@ -13,8 +13,12 @@ bot.start((ctx) => {
         "Send order details in this format:\n\n" +
         "Name: John Doe\n" +
         "Phone: +201234567890\n" +
-        "Address: 123 Main St, Cairo\n" +
+        "Address: 123 Main St\n" +
+        "Apartment: Apt 5, Floor 2\n" +
+        "City: Cairo\n" +
+        "Governorate: Cairo\n" +
         "Product: iPhone 14 Pro\n" +
+        "WIDOT Order Number: 90\n" +
         "Notes: Any special instructions"
     );
 });
@@ -50,7 +54,11 @@ bot.on("text", async (ctx) => {
                 "Name: Your Name\n" +
                 "Phone: Your Phone\n" +
                 "Address: Your Address\n" +
+                "Apartment: Your Apartment\n" +
+                "City: Your City\n" +
+                "Governorate: Your Governorate\n" +
                 "Product: Product Name\n" +
+                "WIDOT Order Number: 90\n" +
                 "Notes: Optional notes"
             );
         }
@@ -66,7 +74,18 @@ bot.on("text", async (ctx) => {
             first_name: data.name.split(" ")[0],
             last_name: data.name.split(" ").slice(1).join(" ") || data.name.split(" ")[0],
             phone: data.phone,
-            email: `${data.phone.replace(/\+/g, '')}@telegram-order.com`
+            email: `${data.phone.replace(/\+/g, '')}@telegram-order.com`,
+            default_address: {
+                first_name: data.name.split(" ")[0],
+                last_name: data.name.split(" ").slice(1).join(" ") || data.name.split(" ")[0],
+                phone: data.phone,
+                address1: data.address,
+                address2: data.apartment || "",
+                city: data.city,
+                province: data.governorate,
+                country: "EG",
+                country_code: "EG"
+            }
         };
 
         // Create order payload
@@ -87,14 +106,19 @@ bot.on("text", async (ctx) => {
                     country: "EG"
                 },
                 shipping_address: {
-                    name: data.name,
+                    first_name: data.name.split(" ")[0],
+                    last_name: data.name.split(" ").slice(1).join(" ") || data.name.split(" ")[0],
                     address1: data.address,
+                    address2: data.apartment || "",
+                    city: data.city,
+                    province: data.governorate,
                     phone: data.phone,
-                    country: "EG"
+                    country: "EG",
+                    country_code: "EG"
                 },
                 customer: customer,
-                note: data.notes || "",
-                tags: "Telegram Order, COD",
+                note: (data["widot order number"] ? `ORDER_${data["widot order number"]}\n\n` : "") + (data.notes || ""),
+                tags: "Telegram Order, COD" + (data["widot order number"] ? `, ORDER_${data["widot order number"]}` : ""),
                 send_receipt: false,
                 send_fulfillment_receipt: false
             }

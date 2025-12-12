@@ -8,9 +8,13 @@ const axios = require("axios");
 const TEST_ORDER = {
     name: "Ahmed Hassan",
     phone: "+201012345678",
-    address: "10 Tahrir Square, Cairo, Egypt",
+    address: "10 Tahrir Square",
+    apartment: "Apt 5, Floor 3",
+    city: "Cairo",
+    governorate: "Cairo",
     product: "Samsung Galaxy S23",
-    notes: "Test order"
+    "widot order number": "90",
+    notes: "Test order from bot"
 };
 
 async function testShopifyConnection() {
@@ -64,7 +68,18 @@ async function testOrderCreation() {
         first_name: TEST_ORDER.name.split(" ")[0],
         last_name: TEST_ORDER.name.split(" ").slice(1).join(" "),
         phone: TEST_ORDER.phone,
-        email: `${TEST_ORDER.phone.replace(/\+/g, '')}@telegram-order.com`
+        email: `${TEST_ORDER.phone.replace(/\+/g, '')}@telegram-order.com`,
+        default_address: {
+            first_name: TEST_ORDER.name.split(" ")[0],
+            last_name: TEST_ORDER.name.split(" ").slice(1).join(" "),
+            phone: TEST_ORDER.phone,
+            address1: TEST_ORDER.address,
+            address2: TEST_ORDER.apartment || "",
+            city: TEST_ORDER.city,
+            province: TEST_ORDER.governorate,
+            country: "EG",
+            country_code: "EG"
+        }
     };
 
     const orderPayload = {
@@ -84,14 +99,19 @@ async function testOrderCreation() {
                 country: "EG"
             },
             shipping_address: {
-                name: TEST_ORDER.name,
+                first_name: TEST_ORDER.name.split(" ")[0],
+                last_name: TEST_ORDER.name.split(" ").slice(1).join(" ") || TEST_ORDER.name.split(" ")[0],
                 address1: TEST_ORDER.address,
+                address2: TEST_ORDER.apartment || "",
+                city: TEST_ORDER.city,
+                province: TEST_ORDER.governorate,
                 phone: TEST_ORDER.phone,
-                country: "EG"
+                country: "EG",
+                country_code: "EG"
             },
             customer: customer,
-            note: TEST_ORDER.notes || "",
-            tags: "Telegram Order, COD, Test",
+            note: (TEST_ORDER["widot order number"] ? `ORDER_${TEST_ORDER["widot order number"]}\n\n` : "") + (TEST_ORDER.notes || ""),
+            tags: "Telegram Order, COD, Test" + (TEST_ORDER["widot order number"] ? `, ORDER_${TEST_ORDER["widot order number"]}` : ""),
             send_receipt: false,
             send_fulfillment_receipt: false
         }
