@@ -1,19 +1,14 @@
-const express = require("express");
-const app = express();
-app.get("/", (req, res) => res.send("Bot is running."));
-app.listen(3000, () => console.log("Server running on 3000"));
+// bot.js
 const { Telegraf } = require("telegraf");
 const axios = require("axios");
 
-require("dotenv").config();
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_TOKEN;
 
 bot.start((ctx) => {
     ctx.reply(
-        "Send order details in this format:\n\n" +
-        "Name:\nPhone:\nAddress:\nProduct:\nNotes:"
+        "Send order details:\n\nName:\nPhone:\nAddress:\nProduct:\nNotes:"
     );
 });
 
@@ -32,7 +27,6 @@ bot.on("text", async (ctx) => {
             return ctx.reply("❌ Missing fields! Please follow the format.");
         }
 
-        // --- Create customer object ---
         const customer = {
             first_name: data.name.split(" ")[0],
             last_name: data.name.split(" ").slice(1).join(" "),
@@ -40,17 +34,12 @@ bot.on("text", async (ctx) => {
             email: `${data.phone}@telegram-order.widot`
         };
 
-        // --- Order payload ---
         const orderPayload = {
             order: {
                 line_items: [
-                    {
-                        title: data.product,
-                        quantity: 1
-                    }
+                    { title: data.product, quantity: 1 }
                 ],
-                financial_status: "pending", // COD → unpaid
-                fulfillment_status: null,
+                financial_status: "pending",
                 billing_address: {
                     name: data.name,
                     address1: data.address,
@@ -67,7 +56,6 @@ bot.on("text", async (ctx) => {
             }
         };
 
-        // --- API Call to Shopify ---
         const response = await axios.post(
             `https://${SHOPIFY_STORE}/admin/api/2024-10/orders.json`,
             orderPayload,
@@ -81,14 +69,13 @@ bot.on("text", async (ctx) => {
 
         const order = response.data.order;
         ctx.reply(
-            `✅ Order Created Successfully!\nOrder Number: #${order.name}\nID: ${order.id}`
+            `✅ Order Created!\nOrder Number: #${order.name}\nID: ${order.id}`
         );
 
     } catch (err) {
         console.error(err.response?.data || err);
-        ctx.reply("❌ Error creating order. Check server logs.");
+        ctx.reply("❌ Error creating order.");
     }
 });
 
-bot.launch();
-console.log("Bot is running...");
+module.exports = bot;
