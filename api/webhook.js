@@ -1,41 +1,36 @@
 // api/webhook.js
 const bot = require("../bot");
 
-// Because Vercel uses raw body by default for Node serverless
 module.exports = async (req, res) => {
-    // Telegram sends POST → handle update
+    // Only handle POST requests
     if (req.method === "POST") {
         try {
-            // Get raw body as JSON
-            let body = req.body;
+            // Vercel automatically parses JSON body
+            const body = req.body;
 
-            // If body is empty (rare), parse raw buffer
-            if (!body) {
-                const chunks = [];
-                for await (const chunk of req) chunks.push(chunk);
-                body = JSON.parse(Buffer.concat(chunks).toString());
-            }
+            console.log("Received update:", JSON.stringify(body));
 
+            // Handle the update
             await bot.handleUpdate(body);
-            return res.status(200).send("OK");
+
+            // Return 200 OK immediately
+            res.status(200).json({ ok: true });
         } catch (err) {
             console.error("Webhook Error:", err);
-            return res.status(500).send("Error");
+            console.error("Error stack:", err.stack);
+
+            // Still return 200 to prevent Telegram from retrying
+            res.status(200).json({ ok: true });
         }
+        return;
     }
 
     // GET request (browser test)
     if (req.method === "GET") {
-        return res.status(200).send("Webhook is running.");
+        res.status(200).send("Webhook is running.");
+        return;
     }
 
-    // Other methods (PUT/DELETE)
-    return res.status(405).send("Method Not Allowed");
-};
-
-// Disable Vercel Body Parser
-module.exports.config = {
-    api: {
-        bodyParser: false
-    }
+    // Other methods
+    res.status(405).send("Method Not Allowed");
 };
