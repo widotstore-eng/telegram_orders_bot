@@ -1,6 +1,7 @@
 // bot.js
 const { Telegraf } = require("telegraf");
 const axios = require("axios");
+const { getProduct } = require("./products");
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
@@ -17,9 +18,16 @@ bot.start((ctx) => {
         "Apartment: Apt 5, Floor 2\n" +
         "City: Cairo\n" +
         "Governorate: Cairo\n" +
-        "Product: iPhone 14 Pro\n" +
+        "Products:\n" +
+        "- Black Hoodie, L\n" +
+        "- Petroleum Trousers, M\n" +
         "WIDOT Order Number: 90\n" +
-        "Notes: Any special instructions"
+        "Notes: Any special instructions\n\n" +
+        "Available products:\n" +
+        "Sets: Petroleum Set, Black Set, Gray Set\n" +
+        "Hoodies: Petroleum Hoodie, Black Hoodie, Gray Hoodie\n" +
+        "Trousers: Petroleum Trousers, Black Trousers, Gray Trousers\n" +
+        "Sizes: M, L, XL"
     );
 });
 
@@ -37,17 +45,40 @@ bot.on("text", async (ctx) => {
 
         // Parse the message
         let data = {};
+        let inProductsSection = false;
+        let products = [];
+
         text.split("\n").forEach((line) => {
+            // Check if we're entering Products section
+            if (line.trim().toLowerCase() === "products:") {
+                inProductsSection = true;
+                return;
+            }
+
+            // Parse product lines (starting with -)
+            if (inProductsSection && line.trim().startsWith("-")) {
+                const productLine = line.trim().substring(1).trim(); // Remove the "-"
+                products.push(productLine);
+                return;
+            }
+
+            // Exit products section if we hit another field
+            if (inProductsSection && line.includes(":") && !line.trim().startsWith("-")) {
+                inProductsSection = false;
+            }
+
+            // Parse regular key:value pairs
             let [key, ...rest] = line.split(":");
-            if (key && rest.length > 0) {
+            if (key && rest.length > 0 && !line.trim().startsWith("-")) {
                 data[key.trim().toLowerCase()] = rest.join(":").trim();
             }
         });
 
+        data.products = products;
         console.log("Parsed data:", data);
 
         // Validate required fields
-        if (!data.name || !data.phone || !data.address || !data.product) {
+        if (!data.name || !data.phone || !data.address || !products.length) {
             return ctx.reply(
                 "❌ Missing required fields!\n\n" +
                 "Please use this format:\n\n" +
@@ -57,7 +88,9 @@ bot.on("text", async (ctx) => {
                 "Apartment: Your Apartment\n" +
                 "City: Your City\n" +
                 "Governorate: Your Governorate\n" +
-                "Product: Product Name\n" +
+                "Products:\n" +
+                "- Black Hoodie, L\n" +
+                "- Petroleum Trousers, M\n" +
                 "WIDOT Order Number: 90\n" +
                 "Notes: Optional notes"
             );
@@ -88,16 +121,47 @@ bot.on("text", async (ctx) => {
             }
         };
 
+        // Parse and validate products
+        const line_items = [];
+        const invalidProducts = [];
+
+        for (const productLine of data.products) {
+            // Parse "Product Name, Size" format
+            const parts = productLine.split(",").map(p => p.trim());
+            if (parts.length !== 2) {
+                invalidProducts.push(productLine);
+                continue;
+            }
+
+            const [productName, size] = parts;
+
+            // Convert product name to product code (e.g., "Black Hoodie" -> "black-hoodie")
+            const productCode = productName.toLowerCase().replace(/ /g, "-");
+
+            // Look up product
+            const product = getProduct(productCode, size);
+            if (!product) {
+                invalidProducts.push(productLine);
+                continue;
+            }
+
+            line_items.push(product);
+        }
+
+        // If any invalid products, notify user
+        if (invalidProducts.length > 0) {
+            return ctx.reply(
+                `❌ Invalid products:\n${invalidProducts.join("\n")}\n\n` +
+                "Please check product names and sizes.\n" +
+                "Available: Petroleum/Black/Gray + Set/Hoodie/Trousers\n" +
+                "Sizes: M, L, XL"
+            );
+        }
+
         // Create order payload
         const orderPayload = {
             order: {
-                line_items: [
-                    {
-                        title: data.product,
-                        quantity: 1,
-                        price: "0.00" // You can parse price from product if needed
-                    }
-                ],
+                line_items: line_items,
                 financial_status: "pending",
                 billing_address: {
                     name: data.name,

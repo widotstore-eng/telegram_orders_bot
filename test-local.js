@@ -3,6 +3,7 @@
 
 require('dotenv').config(); // Install: npm install dotenv
 const axios = require("axios");
+const { getProduct } = require("./products");
 
 // Test configuration
 const TEST_ORDER = {
@@ -12,7 +13,10 @@ const TEST_ORDER = {
     apartment: "Apt 5, Floor 3",
     city: "Cairo",
     governorate: "Cairo",
-    product: "Samsung Galaxy S23",
+    products: [
+        "Black Hoodie, L",
+        "Petroleum Trousers, M"
+    ],
     "widot order number": "90",
     notes: "Test order from bot"
 };
@@ -82,15 +86,23 @@ async function testOrderCreation() {
         }
     };
 
+    // Generate line items from products
+    const line_items = [];
+    for (const productLine of TEST_ORDER.products) {
+        const parts = productLine.split(",").map(p => p.trim());
+        if (parts.length === 2) {
+            const [productName, size] = parts;
+            const productCode = productName.toLowerCase().replace(/ /g, "-");
+            const product = getProduct(productCode, size);
+            if (product) {
+                line_items.push(product);
+            }
+        }
+    }
+
     const orderPayload = {
         order: {
-            line_items: [
-                {
-                    title: TEST_ORDER.product,
-                    quantity: 1,
-                    price: "0.00"
-                }
-            ],
+            line_items: line_items,
             financial_status: "pending",
             billing_address: {
                 name: TEST_ORDER.name,
