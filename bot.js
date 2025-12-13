@@ -190,7 +190,31 @@ bot.on("text", async (ctx) => {
             }
         });
 
-        // Validate Basic Info
+        // Check if any data was actually parsed
+        const hasData = Object.keys(data).length > 0;
+        const hasProducts = products.length > 0;
+
+        if (!hasData && !hasProducts) {
+            // Parsing found no "Key: Value" pairs and no product list.
+            // This is likely just chat text.
+
+            // Case 1: User is already in a session (flow active)
+            if (ctx.session && ctx.session.orderData) {
+                // Ignore chat text or gently guide
+                return ctx.reply("👇 Please use the buttons above to select your products, or send 'Name: ...' to update your info.");
+            }
+
+            // Case 2: No active session
+            return ctx.reply(
+                "👋 Welcome! To start an order, please send your contact info first:\n\n" +
+                "Name: John Doe\n" +
+                "Phone: +201234567890\n" +
+                "Address: 123 Main St\n\n" +
+                "Or type /start to restart."
+            );
+        }
+
+        // Validate Basic Info (Only if we found partial data)
         if (!data.name || !data.phone || !data.address) {
             return ctx.reply(
                 "❌ Missing contact info!\n\n" +
