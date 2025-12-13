@@ -21,6 +21,7 @@ bot.start((ctx) => {
         "Apartment: Apt 5, Floor 2\n" +
         "City: Cairo\n" +
         "Governorate: Cairo\n" +
+        "Shipping: 50\n" +
         "WIDOT Order Number: 90\n" +
         "Notes: Any special instructions\n\n" +
         "👇 After you send this, I'll help you pick your products!"
@@ -234,7 +235,7 @@ bot.on("text", async (ctx) => {
             `✅ Contact info saved for ${data.name}!\n\n` +
             `Now let's pick your products.`
         );
-        askProductType(ctx);
+        setTimeout(() => askProductType(ctx), 500); // Small delay to ensure message order
 
     } catch (err) {
         console.error("Handler error:", err);
@@ -289,6 +290,17 @@ async function createShopifyOrder(ctx, data, lineItems) {
         }
     };
 
+    // Add Shipping Line if available
+    if (data.shipping) {
+        orderPayload.order.shipping_lines = [
+            {
+                title: `${data.governorate} Shipping`,
+                price: data.shipping,
+                code: "Standard"
+            }
+        ];
+    }
+
     try {
         console.log("🚀 Creating Shopify Order...");
         const response = await axios.post(
@@ -321,7 +333,23 @@ async function createShopifyOrder(ctx, data, lineItems) {
 
     } catch (err) {
         console.error("Shopify Error:", err.response?.data || err.message);
-        ctx.reply(`❌ Error creating order: ${err.message}`);
+
+        let errorMessage = "Unknown error";
+        if (err.response?.data?.errors) {
+            // Shopify often returns errors object: { phone: ["has already been taken"] }
+            const errors = err.response.data.errors;
+            if (typeof errors === 'object') {
+                errorMessage = Object.entries(errors)
+                    .map(([key, msgs]) => `${key} ${msgs.join(', ')}`)
+                    .join('\n');
+            } else {
+                errorMessage = JSON.stringify(errors);
+            }
+        } else if (err.message) {
+            errorMessage = err.message;
+        }
+
+        ctx.reply(`❌ Error creating order:\n${errorMessage}`);
     }
 }
 

@@ -18,6 +18,7 @@ const TEST_ORDER = {
         "Petroleum Trousers, M"
     ],
     "widot order number": "90",
+    "shipping": "50",
     notes: "Test order from bot"
 };
 
@@ -129,6 +130,16 @@ async function testOrderCreation() {
         }
     };
 
+    if (TEST_ORDER.shipping) {
+        orderPayload.order.shipping_lines = [
+            {
+                title: `${TEST_ORDER.governorate} Shipping`,
+                price: TEST_ORDER.shipping,
+                code: "Standard"
+            }
+        ];
+    }
+
     console.log("📦 Order Payload:");
     console.log(JSON.stringify(orderPayload, null, 2));
 
@@ -235,7 +246,11 @@ async function runAllTests() {
     // Test 3: Order Creation (only if previous tests pass)
     let orderOk = false;
     if (botOk && shopifyOk) {
+        console.log("\n1️⃣  First Order Attempt (Should Succeed):");
         orderOk = await testOrderCreation();
+
+        console.log("\n2️⃣  Second Order Attempt (Should Fail with Human Readable Error):");
+        await testOrderCreation();
     }
 
     // Summary
